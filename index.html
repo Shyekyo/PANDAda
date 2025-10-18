@@ -1134,7 +1134,7 @@
           const w = parentWidth / idealWidth;
           let scale = Math.min(1, w); // 仅缩小，不放大
           if (printMode && w < 1) {
-              scale = 0.8;
+              scale = 1;
           }
           container.style.transform = `scale(${scale})`;
         });
@@ -1247,5 +1247,6 @@
   </script>
 </body>
 </html>
+
 
 
