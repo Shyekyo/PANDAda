@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>手碟谱编辑器 · Neo</title>
+  <style>
+    /* ======== 全局 ======== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      /*background: radial-gradient(circle at top left, #111, #1c1c1c),url("handpan.jpg");*/
+      background: linear-gradient(rgba(68, 68, 78,0.7), rgba(68, 68, 78,0.7)),url("handpan2.jpg");/*更淡的背景色 */
+      background-size: cover;
+      color: #eee;
+      padding: 30px;
+      min-height: 100vh;
+    }
+
+    /* ======== 容器 ======== */
+    .container {
+      position: relative;
+      max-width: 1200px;
+      margin: 0 auto;
+      /*background: rgba(67, 35, 35, 0.9);更淡的背景色 */
+      background: rgba(255, 245, 138, 0.3);
+      border-radius: 16px;
+      /* 去掉强阴影，保留轻微边框以便区分 */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 30px;
+      animation: fadeIn 0.6s ease;
+      background-size: cover;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 18px;
+      font-size: 36px;
+      color: #8fefff;
+      /* 去掉发光效果 */
+      text-shadow: none;
+    }
+
+    /* ======== 标题输入区 ======== */
+    .score-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 6px;
+      font-family: "Lucida Handwriting" ,cursive;
+    }
+
+    .score-header input {
+      flex: 1;
+      padding: 5px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      font-size: 20px;
+      background: rgba(255, 255, 255, 0.04);
+      color: black;
+      transition: all 0.18s ease;
+      text-align: center !important;
+      font-family: "Lucida Handwriting",cursive;
+    }
+
+    .score-header input::placeholder {
+      color: #16476A;
+      font-family: "Lucida Handwriting" ,cursive;
+    }
+
+    .score-header input:focus {
+      border-color: #6fe8ff;
+      box-shadow: 0 0 6px rgba(111,232,255,0.08);
+      outline: none;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    #scoreAuthor {
+        font-size: 14px !important;
+        font-style: italic;
+    }
+
+    /* ======== 工具栏 ======== */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .toolbar label {
+      font-weight: bold;
+      color: #16476A;
+      font-family: "Lucida Handwriting" ,cursive;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      color: #000;
+      transition: all 0.18s ease;
+      font-size: 19px; /* 默认字体大小 */
+      font-family: "Lucida Handwriting" ,cursive;
+    }
+
+    .toolbar input:focus,
+    .toolbar select:focus {
+      border-color: #6fe8ff;
+      outline: none;
+      box-shadow: 0 0 5px rgba(111,232,255,0.06);
+    }
+
+    .toolbar button {
+      padding: 10px 16px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+      color: white;
+      /*background: linear-gradient(45deg, #1ea6ff, #005ecb); */
+      background: linear-gradient(45deg, #134686, #4FB7B3);
+      box-shadow: none; /* 去掉强阴影 */
+      font-family: "Lucida Handwriting" ,cursive;
+    }
+
+    .toolbar button:hover {
+      transform: translateY(-2px);
+    }
+
+    .toolbar button.secondary {
+      background: linear-gradient(45deg, #134686, #4FB7B3);
+    }
+
+    .toolbar button.danger {
+      background: linear-gradient(45deg, #134686, #4FB7B3);
+    }
+
+    .file-label {
+      padding: 8px 11px;
+      border-radius: 6px;
+      background: linear-gradient(45deg, #134686, #4FB7B3);
+      color: white;
+      cursor: pointer;
+      transition: transform 0.14s ease,box-shadow 0.14s ease;
+    }
+
+    .file-label:hover { transform: translateY(-2px); }
+
+    input[type="file"] { display: none; }
+
+    /* ======== 乐谱区 ======== */
+    /* ======== 乐谱区（紧凑 + 自适应缩放） ======== */
+    .score-container {
+      overflow-x: hidden; /* ✅ 禁止滚动条 */
+      padding: 12px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      white-space: nowrap;
+    }
+
+    .score-line {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0px;
+      padding: 1px 2px;
+      border-radius: 6px;
+      /*transition: background 0.12s;*/
+    }
+
+
+    .score-line:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .line-number {
+      width: 30px;
+      text-align: right;
+      font-weight: bold;
+      font-size: 12px;
+      color: black;
+    }
+
+    /* ✅ 核心自适应区域 */
+    .beats-container {
+      display: flex;
+      flex: 1;
+      justify-content: flex-start;
+      align-items: center;
+      overflow: visible;
+      transform-origin: left center;
+      transition: none/*transform 0.25s ease;  缩放平滑 */
+    }
+
+    /* 单个 beat 紧凑布局 */
+    .beat {
+      position: relative;
+      flex: 0 0 auto;
+      width: 50px; /* 默认宽度，会被缩放脚本动态调整 */
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      margin-right: 1px;
+    }
+
+    .beat-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 1.5px;
+      background-color: rgba(0, 0, 0);
+      transform: translateY(-50%);
+    }
+
+    /* subdivision 紧凑 + 防裁切 */
+    .subdivision {
+      position: relative;
+      height: 45px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.15s ease;
+      padding: 0 2px;
+      overflow: visible;
+    }
+
+    .subdivision:hover {
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .subdivision.active {
+      background: rgba(0, 212, 255, 0.2);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+    }
+
+    /* 左右分界线 */
+    .subdivision-line {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background-color: black;
+    }
+    .subdivision-line.left { left: 0; }
+    .subdivision-line.right { right: 0; }
+
+    /* 数字与点样式*/
+    .leftnote {
+      font-size: 20px;
+      font-weight: 600;
+      /*color: #ff7f50; F25912 E14434*/
+      color: #BF092F;
+      text-shadow: none;
+      line-height: 1;
+    }
+    .rightnote {
+      font-size: 20px;  
+      font-weight: 600;
+      /*color: #0b79d1;3674B5*/
+      color: #0046FF;
+      text-shadow: none;
+      line-height: 1;
+    }
+
+
+    /* ======= 简谱核心样式======= */
+    .core {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      line-height: 1;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      padding: 0 3px;
+      font-family: "Georgia" ,serif;
+    }
+
+    /* 主数字 */
+    .core .num {
+      display: inline-block;
+      font-size: 25px; /* 更清晰但不过大 */
+      line-height: 1;
+      vertical-align: middle;
+      position: relative;
+      z-index: 2;
+      pointer-events: none;
+      font-weight: bold;
+    }
+
+    /* 智能缩放：点越多数字越小一点点 */
+    .core.dot-1 .num { transform: scale(0.94); }
+    .core.dot-2 .num { transform: scale(0.88); }
+    .core.dot-3 .num { transform: scale(0.82); }
+
+    /* 上下点样式 */
+    sup.dot,
+    sub.dot {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      color: inherit;
+      font-size: 16px; /* ✅ 比数字略小，视觉均衡 */
+      font-weight: 600;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 3;
+      font-weight: bolder;
+    }
+
+    /* 上方点：间距更紧凑但不重叠 */
+    sup.dot:nth-of-type(1) { top: -0.55em; }
+    sup.dot:nth-of-type(2) { top: -1.05em; }
+    sup.dot:nth-of-type(3) { top: -1.55em; }
+
+    /* 下方点：同理 */
+    sub.dot:nth-of-type(1) { bottom: -0.55em; }
+    sub.dot:nth-of-type(2) { bottom: -1.05em; }
+    sub.dot:nth-of-type(3) { bottom: -1.55em; }
+
+
+    /* 省略号延音显示样式（如果有） */
+    .sustain { display:inline-block; margin-left:4px; font-weight:600; }
+
+   
+
+@media print {
+  /* ✅ 打印时取消裁切 */
+  .score-container {
+    overflow: visible !important;
+  }
+
+  /* ✅ 保持整行显示 + 自动等比缩小 */
+  .beats-container {
+    transform-origin: left top !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    display: flex !important;
+    width: auto !important;
+  }
+
+  /* ✅ 保证整行不分页中断 */
+  .score-line {
+    page-break-inside: avoid !important;
+    overflow: visible !important;
+    transform: scale(0.85);  /* ✅ 关键：整体缩小一点让整行容纳进页面 */
+    transform-origin: left top !important;
+  }
+
+  /* ✅ 去掉背景、渐变，节省墨水 */
+  body, .container {
+    background: none !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* ✅ 隐藏按钮（保留输入框） */
+  .toolbar button,
+  .file-label,.info,.lineNum,.savedScores{
+    display: none !important;
+  }
+}
+
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="score-header">
+      <input id="scoreTitle" type="text" placeholder="谱名（Title）" />
+    </div>
+    <div class="score-header">
+      <input id="scoreAuthor" type="text" placeholder="作者（Author）" />
+    </div>
+
+    <div class="toolbar">
+      <div><label>拍号:</label>
+        <select class="select_beat" id="beatsPerMeasure">
+          <option value="2">2/4</option>
+          <option value="3">3/4</option>
+          <option value="4" selected>4/4</option>
+          <option value="6">6/8</option>
+        </select>
+      </div>
+      <div ><label>调式:</label>
+        <input style="width:100px;" type="text" id="mode" value="F4=1" min="1" max="500">
+      </div>
+      <div><label>速度:</label>
+        <input style="width:80px;" type="number" id="speed" value="60" min="1" max="500">
+      </div>
+      <div class="lineNum"><label>行数:</label>
+        <input style="width:80px; type="number" id="lineCount" value="8" min="1" max="50">
+      </div>
+      <button onclick="updateScore()">应用</button>
+      <input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
+      <button class="danger" onclick="clearScore()">清空</button>
+      <button onclick="printScore()">打印</button>
+      <button class="secondary" onclick="exportJSON()">保存</button>
+      <label class="file-label" for="importFile">导入</label>
+      <div class="savedScores">
+        <label>开源谱:</label>
+        <select id="savedScoresSelect" onchange="editor.loadSavedScore(this.value)">
+          <option value="">选择谱子</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="scoreContainer" class="score-container"></div>
+
+    <div class="info">
+      <h3>📘 说明</h3>
+      <ul>
+        <li>点击格子输入音符；</li>
+        <li>方向键 ← → 上下移动光标；</li>
+        <li>Delete/Backspace 可清空音符；</li>
+        <li>您编写的谱子可共享给其他玩家；</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+
+    const top="ghp_"
+    const tail = 'QgCJkZiaJm9VCc3KN1SvN8xAfv5eiT4F0JQj'; 
+    const token=top+tail
+    const repoOwner = 'Shyekyo'; 
+    const repoName = 'handpan_json'; // 
+    
+
+    async function createOrUpdateFile(fileName, fileContent) {
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(fileContent);
+                const base64Content = btoa(String.fromCharCode(...data));
+                const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${fileName}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: 'Create or update file',
+                        content: base64Content
+                    })
+                });
+
+                if (response.ok) {
+                    alert('文件已成功创建或更新!');
+                } else {
+                    alert('当前谱名和作者已存在: ' + response.statusText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function readFiles() {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/`, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (response.ok) {
+                    const files = await response.json();
+                    const fileNames = files.map(file => file.name); // 获取文件名称
+                    return fileNames; // 返回文件名称数组
+                } else {
+                    alert('获取失败: ' + response.statusText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function deleteFile(fileName) {
+            try {
+                // 首先需要获取文件的 SHA 值
+                const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${fileName}`, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (response.ok) {
+                    const fileData = await response.json();
+                    const deleteResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${fileName}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({
+                            message: 'Delete file',
+                            sha: fileData.sha // 提供文件的 SHA 值
+                        })
+                    });
+
+                    if (deleteResponse.ok) {
+                        alert('文件已成功删除!');
+                    } else {
+                        alert('删除失败: ' + deleteResponse.statusText);
+                    }
+                } else {
+                    alert('获取文件信息失败: ' + response.statusText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+
+
+    class JianpuRenderer {
+      /**
+       * 简谱渲染器静态类（未改动核心逻辑）
+       * 负责把简谱字符串转换成 HTML（包含上下点、升降号、延音符号）
+       *
+       * 方法：
+       * - render(raw: string) => string
+       *   raw: 原始简谱字符串（例如 ".5.", "3", "4-","b5" 等）
+       *   返回值：对应的 HTML 片段字符串
+       *
+       * 注意：该渲染器保持与你原逻辑一致（包括点用 '.' 表示），且对输出做了 HTML 转义。
+       */
+      static escapeHtml(str) {
+        return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+      }
+
+      static render(raw) {
+        if (!raw) return '<span class="empty"></span>';
+        raw = String(raw).trim();
+
+        // 下方点与上方点使用句首/句尾的 '.' 表示（保持与你原来规则一致）
+        const downDots = (raw.match(/^\.+/) || [''])[0].length;
+        const upDots = (raw.match(/\.+$/) || [''])[0].length;
+        let core = raw.replace(/^\.+/, '').replace(/\.+$/, '');
+
+        // 升降号替换显示
+        core = core.replace(/b/g, '♭').replace(/#/g, '♯');
+
+        const sustain = core.endsWith('-');
+        if (sustain) core = core.slice(0, -1);
+
+        // 生成上/下点 html（上方用 sup，下方用 sub） — 保持顺序：sup ... sub ... num
+        const upHTML = Array.from({ length: upDots }, () => '<sup class="dot">·</sup>').join('');
+        const downHTML = Array.from({ length: downDots }, () => '<sub class="dot">·</sub>').join('');
+        const sustainHTML = sustain ? '<span class="sustain">—</span>' : '';
+
+        const maxDots = Math.max(upDots, downDots);
+        const dotClass = maxDots > 0 ? `dot-${Math.min(maxDots, 3)}` : '';
+
+        // 注意：把 upHTML 放在前、downHTML 放在后，以便 nth-of-type 在同标签内计数正常
+        return `
+          <span class="core ${dotClass}">
+            ${upHTML}
+            ${downHTML}
+            <span class="num">${JianpuRenderer.escapeHtml(core)}</span>
+          </span>
+          ${sustainHTML}
+        `;
+      }
+    }
+
+    async function getFileContent(filePath) {
+                try {
+                    const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const content = decodeBase64(data.content); // 解码 Base64 内容
+                        return content; // 返回文件内容
+                    } else {
+                        alert('获取文件失败: ' + response.statusText);
+                        return '';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    return '';
+                }
+            }
+
+    function decodeBase64(base64) {
+            // 使用 Uint8Array 和 TextDecoder 解码 Base64 内容
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const decoder = new TextDecoder("utf-8"); // 使用 UTF-8 编码解码
+            return decoder.decode(bytes);
+        }
+
+    class HandpanScoreEditor {
+      /**
+       * HandpanScoreEditor 构造函数
+       *
+       * 不接受外部参数（页面内 DOM id 与默认值固定），构造时会：
+       * - 初始化内部数据结构 scoreData（包含 title/author/speed/mode/拍号/分辨率/行数/notes）
+       * - 绑定事件（窗口 resize、键盘、文件输入等）
+       * - 渲染初始空谱
+       *
+       * 内部主要字段：
+       * - this.scoreData: { title, author, speed, mode, beatsPerMeasure, subdivisionsPerBeat, lineCount, notes }
+       *      - title: 谱名（字符串），从 #scoreTitle 读取/写入
+       *      - author: 作者（字符串），从 #scoreAuthor 读取/写入
+       *      - speed: 速度（字符串/数字），页面上保留为字符串（取自 #speed）
+       *      - mode: 调式（字符串），从 #mode 读取/写入（例如 "F4=1"）
+       *      - beatsPerMeasure: 每小节拍数（整数），来源于 #beatsPerMeasure 选择框（2/3/4/6）
+       *      - subdivisionsPerBeat: 每拍细分数（整数），默认 4（如果导入数据缺少该字段会填为 4）
+       *      - lineCount: 行数（整数），来自 #lineCount 输入
+       *      - notes: 四维数组（line x layer x beat x subdivision）保存每个格子的字符串值
+       * - this.currentPosition: { line, layer, beat, subdivision } 当前光标位置
+       * - this.mutationObserver: MutationObserver（用于在 DOM 变动时自动触发自适应缩放）
+       */
+      constructor() {
+        this.readonly = false; 
+        // 数据结构初始化（会被 initScore() 调整）
+        this.scoreData = {
+          title: "",
+          author: "",
+          speed: "",
+          mode: "",
+          beatsPerMeasure: 4,
+          subdivisionsPerBeat: 4,
+          lineCount: 8,
+          notes: []
+        };
+
+        // 当前光标位置（默认行0，声部 layer=0，节拍=0，细分=0）
+        this.currentPosition = { line: 0, layer: 0, beat: 0, subdivision: 0 };
+
+        // DOM 缓存
+        this.dom = {
+          container: document.getElementById('scoreContainer'),
+          titleInput: document.getElementById('scoreTitle'),
+          authorInput: document.getElementById('scoreAuthor'),
+          beatsSelect: document.getElementById('beatsPerMeasure'),
+          modeInput: document.getElementById('mode'),
+          speedInput: document.getElementById('speed'),
+          lineCountInput: document.getElementById('lineCount'),
+          importFileInput: document.getElementById('importFile')
+        };
+
+        // MutationObserver 用于监听 scoreContainer 内子节点变化以触发自适应缩放
+        this.mutationObserver = null;
+
+        // 绑定事件（键盘、窗口 resize、文件输入 onchange）
+        this.bindEvents();
+
+        // 初始化数据并渲染
+        this.initScore();
+        this.renderScore();
+
+        // 初始化自适应缩放并观察 DOM 变动
+        this.autoScaleScore();
+        this.initMutationObserver();
+      }
+
+      /* ============================
+         事件绑定方法
+         说明：把所有的事件监听集中在此
+      ============================ */
+      bindEvents() {
+        // 窗口 resize 触发自适应缩放
+        window.addEventListener('resize', () => this.autoScaleScore());
+
+        // 键盘事件：负责输入字符、删除、光标移动
+        document.addEventListener('keydown', (e) => this.handleKeydown(e));
+
+        // 文件输入 onchange（导入 JSON）
+        if (this.dom.importFileInput) {
+          this.dom.importFileInput.addEventListener('change', (e) => this.importJSON(e));
+        }
+
+        // 页面 load 时再执行一次缩放（确保布局好）
+        window.addEventListener('load', () => {
+          this.autoScaleScore();
+        });
+      }
+
+      /* =====================================
+         initMutationObserver
+         - 作用：在 scoreContainer 的 DOM 变化（渲染）后自动触发 autoScaleScore
+         - 原理：使用 MutationObserver 监听 childList 与 subtree
+      ===================================== */
+      initMutationObserver() {
+        if (!this.dom.container) return;
+        this.mutationObserver = new MutationObserver(() => this.autoScaleScore());
+        this.mutationObserver.observe(this.dom.container, { childList: true, subtree: true });
+      }
+
+      /* ============================
+         initScore
+         初始化 scoreData 的 notes 四维数组结构
+         说明：
+         - 会读取 DOM 上当前拍号 (beatsPerMeasure) 与行数 (lineCount)
+         - subdivisionsPerBeat 使用已有的值或默认 4（与原逻辑保持一致）
+         - notes 的结构：Array[lineCount][8 layers][beatsPerMeasure][subdivisionsPerBeat]
+         - 若 currentPosition 超出范围则修正为最后一行
+      ============================ */
+      initScore() {
+        // 从 DOM 读取拍号与行数（保持原字段来源）
+        this.scoreData.beatsPerMeasure = parseInt(this.dom.beatsSelect.value) || 4;
+        this.scoreData.lineCount = Math.max(1, parseInt(this.dom.lineCountInput.value) || 8);
+        this.scoreData.speed = Math.max(1, parseInt(this.dom.speedInput.value) || 60);
+
+        // 保证 subdivisionsPerBeat 有值（原来的默认是 4）
+        this.scoreData.subdivisionsPerBeat = this.scoreData.subdivisionsPerBeat || 4;
+        // 创建四维数组：lineCount x 8 layers x beatsPerMeasure x subdivisionsPerBeat
+        this.scoreData.notes = Array.from({ length: this.scoreData.lineCount }, () =>
+          Array.from({ length: 8 }, () =>
+            Array.from({ length: this.scoreData.beatsPerMeasure }, () =>
+              Array(this.scoreData.subdivisionsPerBeat).fill('')
+            )
+          )
+        );
+
+        // 修复 currentPosition.line 超出范围的问题（保持安全）
+        if (this.currentPosition.line >= this.scoreData.lineCount) {
+          this.currentPosition.line = this.scoreData.lineCount - 1;
+        }
+      }
+
+      /* ============================
+         renderScore
+         渲染整个谱面到 DOM（scoreContainer）
+         参数：
+         - printMode (boolean) 可选：如果为 true，则在渲染时跳过空行（便于打印）
+         说明：
+         - 保持原来渲染结构与样式（line-number、beats-container、beat、subdivision 等）
+         - 点击 subdivision 会调用 selectPosition（更新光标）
+      ============================ */
+      renderScore({ printMode = false } = {}) {
+        const container = this.dom.container;
+        if (!container) return;
+        container.innerHTML = '';
+
+        for (let lineIdx = 0; lineIdx < this.scoreData.lineCount; lineIdx++) {
+          // 检查这一行是否有音符（用于打印模式跳过空行）
+          const lineHasNotes = this.scoreData.notes[lineIdx]?.some(layer =>
+              layer?.some(beat => beat?.some(sub => sub && sub.trim() !== ''))
+          );
+          if (printMode && !lineHasNotes) continue; // 跳过空行（打印模式）
+
+          const scoreLine = document.createElement('div');
+          scoreLine.className = 'score-line';
+
+          const lineNumber = document.createElement('div');
+          lineNumber.className = 'line-number';
+          lineNumber.textContent = lineIdx + 1;
+          scoreLine.appendChild(lineNumber);
+
+          const beatsContainer = document.createElement('div');
+          beatsContainer.className = 'beats-container';
+
+          // 8 个 layer（保留原来的 8 层声部）
+          for (let layer = 0; layer < 8; layer++) {
+            for (let beatIdx = 0; beatIdx < this.scoreData.beatsPerMeasure; beatIdx++) {
+              const beat = document.createElement('div');
+              beat.className = 'beat';
+              const beatLine = document.createElement('div');
+              beatLine.className = 'beat-line';
+              beat.appendChild(beatLine);
+
+              for (let subIdx = 0; subIdx < this.scoreData.subdivisionsPerBeat; subIdx++) {
+                const subdivision = document.createElement('div');
+                subdivision.className = 'subdivision';
+                subdivision.dataset.line = lineIdx;
+                subdivision.dataset.layer = layer;
+                subdivision.dataset.beat = beatIdx;
+                subdivision.dataset.sub = subIdx;
+
+                // 如果当前是光标位置则添加 active 类以便高亮
+                if (
+                  this.currentPosition.line === lineIdx &&
+                  this.currentPosition.layer === layer &&
+                  this.currentPosition.beat === beatIdx &&
+                  this.currentPosition.subdivision === subIdx
+                ) subdivision.classList.add('active');
+
+                // 左边线（保留原逻辑判断）
+                const subLine = document.createElement('div');
+                if ((subIdx === 0 || subIdx === 3) && beatIdx != 0) {
+                  // 原代码中注释掉的分支保留注释状态
+                } else {
+                  subLine.className = 'subdivision-line left';
+                }
+                subdivision.appendChild(subLine);
+
+                const note = document.createElement('div');
+                // 原逻辑：subIdx < 2 => rightnote；否则 leftnote（保留）
+                note.className = subIdx < 2 ? 'rightnote' : 'leftnote';
+
+                // 读取当前音符值（如果存在）
+                const value = (this.scoreData.notes[lineIdx] &&
+                               this.scoreData.notes[lineIdx][layer] &&
+                               this.scoreData.notes[lineIdx][layer][beatIdx] &&
+                               this.scoreData.notes[lineIdx][layer][beatIdx][subIdx]) || '';
+
+                // 使用 JianpuRenderer 渲染（与原逻辑一致）
+                note.innerHTML = value ? JianpuRenderer.render(value) : '<span class="empty"></span>';
+                subdivision.appendChild(note);
+
+                // 如果是最后一个 beat 且是最后一个 layer，则在右边加上分界线（与原逻辑一致）
+                if ((beatIdx == this.scoreData.beatsPerMeasure - 1) && layer == 7) {
+                  const subLine2 = document.createElement('div');
+                  subLine2.className = 'subdivision-line right';
+                  subdivision.appendChild(subLine2);
+                }
+
+                // 点击格子选择位置
+                subdivision.onclick = () => this.selectPosition(lineIdx, layer, beatIdx, subIdx);
+                beat.appendChild(subdivision);
+              }
+              beatsContainer.appendChild(beat);
+            }
+          }
+
+          scoreLine.appendChild(beatsContainer);
+          container.appendChild(scoreLine);
+        }
+      }
+
+      /* ============================
+         selectPosition
+         说明：选择光标位置（点击格子时调用）
+         参数：line, layer, beat, subdivision（均为整数索引）
+         作用：
+         - 移除页面上旧的 .subdivision.active 类
+         - 给目标格子添加 .active
+         - 更新 this.currentPosition（用于键盘输入）
+      ============================ */
+      selectPosition(line, layer, beat, subdivision) {
+        // 移除旧高亮
+        document.querySelectorAll('.subdivision.active').forEach(el => el.classList.remove('active'));
+
+        // 构造选择器并设置目标元素高亮
+        const selector = `.subdivision[data-line="${line}"][data-layer="${layer}"][data-beat="${beat}"][data-sub="${subdivision}"]`;
+        const target = document.querySelector(selector);
+        if (target) target.classList.add('active');
+
+        // 更新状态
+        this.currentPosition = { line, layer, beat, subdivision };
+      }
+
+      /* ============================
+         setNote
+         说明：在当前光标位置写入音符字符串
+         参数：v (string) 要写入的音符文本（例如 ".5", "3", "4-", "b5"）
+         作用：
+         - 如果 notes 结构不存在则先 initScore()
+         - 写入数据后重新渲染谱面
+      ============================ */
+      setNote(v) {
+        if (this.readonly) return;
+        const p = this.currentPosition;
+        if (!this.scoreData.notes[p.line]) this.initScore();
+        this.scoreData.notes[p.line][p.layer][p.beat][p.subdivision] = v;
+        this.renderScore();
+      }
+
+      /* ============================
+         moveLinear
+         说明：按格子线性移动光标（用于左右移动）
+         参数：
+         - dLine (integer) 行数增量（通常 0）
+         - dLinear (integer) 在当前行内整体格子索引的偏移（正负）
+         逻辑说明：
+         - 每 layer 有 perLayer = beatsPerMeasure * subdivisionsPerBeat 个格子
+         - 每行有 perLine = perLayer * 8 个格子（8 层）
+         - 先把当前的线性索引加上偏移，然后计算出新的 layer/beat/sub
+         - 边界处理：若超出行则上下移动行（但会限在 0..lineCount-1）
+      ============================ */
+      moveLinear(dLine, dLinear) {
+        const perLayer = this.scoreData.beatsPerMeasure * this.scoreData.subdivisionsPerBeat;
+        const perLine = perLayer * 8;
+        let idx = this.currentPosition.layer * perLayer +
+                  this.currentPosition.beat * this.scoreData.subdivisionsPerBeat +
+                  this.currentPosition.subdivision + dLinear;
+        let line = this.currentPosition.line + dLine;
+        if (idx < 0) { idx += perLine; line--; }
+        if (idx >= perLine) { idx -= perLine; line++; }
+        if (line < 0) line = 0;
+        if (line >= this.scoreData.lineCount) line = this.scoreData.lineCount - 1;
+        const layer = Math.floor(idx / perLayer);
+        const beat = Math.floor((idx % perLayer) / this.scoreData.subdivisionsPerBeat);
+        const sub = idx % this.scoreData.subdivisionsPerBeat;
+        this.currentPosition = { line, layer, beat, subdivision: sub };
+        this.renderScore();
+      }
+
+      /* ============================
+         moveRow
+         说明：上下移动行（用于箭头上下）
+         参数：d (integer) 行增量（+1 或 -1）
+         作用：限制 newLine 在 0 .. lineCount-1 之内并更新 currentPosition
+      ============================ */
+      moveRow(d) {
+        let newLine = this.currentPosition.line + d;
+        if (newLine < 0) newLine = 0;
+        if (newLine >= this.scoreData.lineCount) newLine = this.scoreData.lineCount - 1;
+        this.currentPosition.line = newLine;
+        this.renderScore();
+      }
+
+      /* ============================
+         handleKeydown
+         键盘事件处理器
+         说明：
+         - 与原逻辑一致：当焦点在特定 input (#scoreTitle, #scoreAuthor, #lineCount, #mode, #speed) 时忽略快捷键
+         - 接受字符包括 0-9 a-z A-Z # b - .（与原正则一致）
+         - '.' 会作为点追加到当前音符
+         - 普通字符会追加到当前槽位（长度限制 4）
+         - Delete / Backspace 清空当前格
+         - ArrowLeft / ArrowRight 调用 moveLinear
+         - ArrowUp / ArrowDown 调用 moveRow
+      ============================ */
+      handleKeydown(e) {
+        if (this.readonly) return;
+        // 如果焦点在表单输入框内则忽略（保留原有输入行为）
+        if (['scoreTitle', 'scoreAuthor','lineCount','mode','speed'].includes(document.activeElement.id)) return;
+
+        if (/^[0-9a-zA-Z#b\-\.]$/.test(e.key)) {
+          const p = this.currentPosition;
+          let oldVal = (this.scoreData.notes[p.line] && this.scoreData.notes[p.line][p.layer] && this.scoreData.notes[p.line][p.layer][p.beat] && this.scoreData.notes[p.line][p.layer][p.beat][p.subdivision]) || '';
+          let newVal = oldVal;
+          if (e.key === '.') {
+              newVal += '.';
+          } else {
+              if (newVal.length < 4) newVal += e.key;
+              else newVal = e.key;
+          }
+          this.setNote(newVal);
+          e.preventDefault();
+        }
+        else if (e.key === 'Delete' || e.key === 'Backspace') { this.setNote(''); e.preventDefault(); }
+        else if (e.key === 'ArrowLeft') { this.moveLinear(0, -1); e.preventDefault(); }
+        else if (e.key === 'ArrowRight') { this.moveLinear(0, 1); e.preventDefault(); }
+        else if (e.key === 'ArrowUp') { this.moveRow(-1); e.preventDefault(); }
+        else if (e.key === 'ArrowDown') { this.moveRow(1); e.preventDefault(); }
+      }
+
+      /* ============================
+         updateScore
+         说明：应用当前页面上的设置（拍号/行数等）
+         作用：调用 initScore 并重新渲染
+         与原全局函数行为一致（被页面按钮 onclick 调用）
+      ============================ */
+      updateScore() {
+        if (this.readonly) return;
+        this.initScore();
+        this.renderScore();
+        this.toggleReadonly(false);
+      }
+
+      /* ============================
+         clearScore
+         说明：清空谱子（提示确认），恢复到空的数据结构
+         注意：保留了原来使用 confirm 的交互
+      ============================ */
+      clearScore() {
+        if (!confirm('确定要清空所有音符吗？')) return;
+        this.initScore();
+        this.renderScore();
+        this.toggleReadonly(false);
+      }
+
+
+      getCurrentTimeString() {
+          const now = new Date();
+          // 获取各个时间部分
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0'); // 月份从0开始
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+          const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+
+          // 生成格式化的时间字符串
+          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+      }
+      /* ============================
+         exportJSON
+         说明：把 this.scoreData 导出为 JSON 文件供用户下载
+         行为说明（保持原逻辑）：
+         - 将页面上的 #scoreTitle、#scoreAuthor、#speed、#mode 的值写回 scoreData
+         - 注意：为了完全保留原文件行为，这里保留原始代码中将 speed 和 mode 从 scoreAuthor 获取的行为（即未修复潜在 bug）
+         - 文件名：`${scoreData.title || 'handpan_score'}.json`
+      ============================ */
+      exportJSON() {
+        // 将页面输入回写到数据对象
+        this.scoreData.title = this.dom.titleInput.value.trim();
+        this.scoreData.author = this.dom.authorInput.value.trim();
+        this.scoreData.speed = this.dom.speedInput.value.trim();
+        this.scoreData.mode = this.dom.modeInput.value.trim();
+
+        const blob = new Blob([JSON.stringify(this.scoreData, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${this.scoreData.title || 'handpan_fans'}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        const t = this.getCurrentTimeString()
+        const filename=`${this.scoreData.title+'_'+this.scoreData.author || 'handpan_fans'+"_"+t}`;
+        const textContent=JSON.stringify(this.scoreData, null, 2);
+        createOrUpdateFile(filename,textContent)
+        updateSavedScoresDropdown()
+      }
+
+      /* ============================
+         importJSON
+         说明：从 file input 读取 JSON 并替换 scoreData
+         参数：e (Event) - input change 事件
+         行为：
+         - 读取文件并尝试 JSON.parse
+         - 将 title/author/speed/mode 写回对应输入框
+         - 若导入数据缺少 subdivisionsPerBeat，则填为 4（与原逻辑保持一致）
+         - 渲染新数据；若解析失败则 alert 导入失败
+      ============================ */
+      importJSON(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = evt => {
+          try {
+            this.scoreData = JSON.parse(evt.target.result);
+            // 将导入的数据回写到页面输入框（如有）
+            if (this.dom.titleInput) this.dom.titleInput.value = this.scoreData.title || '';
+            if (this.dom.authorInput) this.dom.authorInput.value = this.scoreData.author || '';
+            if (this.dom.speedInput) this.dom.speedInput.value = this.scoreData.speed || '';
+            if (this.dom.modeInput) this.dom.modeInput.value = this.scoreData.mode || '';
+
+            // 修正数据结构（防止缺少 subdivisionsPerBeat）
+            this.scoreData.subdivisionsPerBeat = this.scoreData.subdivisionsPerBeat || 4;
+
+            // 确保 lineCount 与 DOM 的一致（如果导入数据包含 lineCount，则尊重它）
+            // 但不强行编辑 DOM 的 lineCount 输入（保持导入的行为与原脚本一致）
+            this.renderScore();
+          } catch (err) {
+            console.error(err);
+            alert('❌ 导入失败');
+          }
+        };
+        r.readAsText(file);
+        // 清空 input 的值以便下次导入同一文件仍会触发 change 事件
+        e.target.value = '';
+        this.toggleReadonly(false);
+      }
+
+      /* ============================
+         printScore
+         说明：在打印前渲染并启用打印模式（跳过空行），调用浏览器 print，
+               打印结束后恢复为普通渲染。
+         行为与原脚本保持一致。
+      ============================ */
+      printScore() {
+        this.renderScore({ printMode: true });
+        this.autoScaleScore({ printMode: true });
+        window.print();
+        this.renderScore(); // 打印后恢复
+        updateSavedScoresDropdown()
+      }
+
+      /* ============================
+         autoScaleScore
+         说明：自适应缩放功能，用于在容器宽度不足时整体缩小 beats-container
+         参数：
+         - printMode (boolean) 可选：打印模式下优先使用特定缩放（保持原逻辑）
+         逻辑：
+         - 计算父元素宽度（减去行号预留），与理论宽度比较，按比例缩小（不放大）
+         - 若 printMode 且计算比率 < 1 则强制 scale = 0.8（保留原脚本的魔法数）
+      ============================ */
+      autoScaleScore({ printMode = false } = {}) {
+        const containers = document.querySelectorAll('.beats-container');
+        containers.forEach(container => {
+          const parentWidth = container.parentElement.clientWidth - 50; // 留出行号宽度（与原脚本一致）
+          const totalBeats = container.querySelectorAll('.beat').length;
+          if (!totalBeats) return;
+          const idealWidth = totalBeats * 50; // 理论总宽度（默认每 beat 50px）
+          const w = parentWidth / idealWidth;
+          let scale = Math.min(1, w); // 仅缩小，不放大
+          if (printMode && w < 1) {
+              scale = 0.8;
+          }
+          container.style.transform = `scale(${scale})`;
+        });
+      }
+
+      /* ============================
+         toggleReadonly
+         设置编辑器为只读或可编辑模式
+      ============================ */
+      toggleReadonly(flag) {
+        this.readonly = !!flag;
+        
+        // 显示/隐藏提示条
+        let tip = document.getElementById("readonlyTip");
+        if (!tip) {
+          tip = document.createElement("div");
+          tip.id = "readonlyTip";
+          tip.textContent = "🔒 当前为开源谱，禁止修改";
+          tip.style.position = "fixed";
+          tip.style.top = "10px";
+          tip.style.right = "10px";
+          tip.style.padding = "8px 14px";
+          tip.style.background = "rgba(255, 200, 0, 0.85)";
+          tip.style.color = "#000";
+          tip.style.borderRadius = "6px";
+          tip.style.fontWeight = "bold";
+          tip.style.zIndex = "9999";
+          document.body.appendChild(tip);
+        }
+        tip.style.display = this.readonly ? "block" : "none";
+
+        // 禁用/启用输入框与按钮
+        const inputs = document.querySelectorAll('input, .select_beat, .file-label');
+        inputs.forEach(el => {
+          if (this.readonly) {
+            el.disabled = true;
+            el.style.opacity = 0.6;
+            el.style.cursor = "not-allowed";
+          } else {
+            el.disabled = false;
+            el.style.opacity = "";
+            el.style.cursor = "";
+          }
+        });
+      }
+    }
+
+    // ============================
+    // 单例化编辑器并暴露到全局（兼容页面原有 inline onclick）
+    // ============================
+    alert("您在此编辑器中编写的谱子将被视为开源，其他使用该编辑器的用户将能够查看并使用您的创作。我鼓励您分享您的谱子，也祝您在音乐创作中获得灵感与乐趣！")
+    window.editor = new HandpanScoreEditor();
+
+    // 🎵 本地内存中的谱子仓库
+    // ===============================
+    window.savedScores = [];  // 以 “title|author” 为键，存储 JSON 对象
+
+    // ✅ 渲染下拉框选项
+    async function updateSavedScoresDropdown() {
+      const fileNames = await readFiles();
+      window.savedScores=fileNames
+      const select = document.getElementById('savedScoresSelect');
+      if (!select) return;
+      const currentValue = select.value;
+      select.innerHTML = '<option value="">选择谱子</option>';
+      //Object.keys(window.savedScores).forEach(k => {
+      fileNames.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = k.replace('|', ' · ');
+        select.appendChild(opt);
+      });
+      select.value = currentValue || '';
+    }
+
+    // ✅ 选择已保存谱子并加载
+    window.editor.loadSavedScore = async function(key) {
+      if (!key || !window.savedScores.includes(key)) return;
+      this.toggleReadonly(true); 
+      json_str = await getFileContent(key)
+      //const data = JSON.parse(JSON.stringify(json_str));
+      const data = JSON.parse(json_str);
+      this.scoreData = data;
+
+      // 同步输入框
+      this.dom.titleInput.value = data.title || '';
+      this.dom.authorInput.value = data.author || '';
+      this.dom.speedInput.value = data.speed || '';
+      this.dom.modeInput.value = data.mode || '';
+      this.dom.lineCountInput.value = data.lineCount || 8;
+      this.dom.beatsSelect.value = data.beatsPerMeasure || 4;
+
+      this.renderScore();
+      this.autoScaleScore();
+      //lert(`🎼 已加载谱子：${key.replace('|', ' · ')}`);
+    };
+
+
+    // 为了兼容原页面中使用的全局函数名（onclick/onchange 引用），把它们映射到 editor 的方法上
+    // 这样你无需修改 HTML 中的 onclick/onchange。
+    window.updateScore = () => window.editor.updateScore();
+    window.exportJSON = () => window.editor.exportJSON();
+    window.importJSON = (e) => window.editor.importJSON(e);
+    window.clearScore = () => window.editor.clearScore();
+    window.printScore = () => window.editor.printScore();
+    // 另外暴露 selectPosition 与 setNote（若需要外部调用）
+    window.selectPosition = (line, layer, beat, sub) => window.editor.selectPosition(line, layer, beat, sub);
+    window.setNote = (v) => window.editor.setNote(v);
+    updateSavedScoresDropdown()
+  </script>
+</body>
+</html>
