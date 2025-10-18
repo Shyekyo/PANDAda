@@ -18,7 +18,7 @@
       min-height: 100vh;
     }
 
-    /* ======== 容器 ========  max-width: 1200px;*/
+    /* ======== 容器 ======== max-width: 1200px;*/
     .container {
       position: relative;
       width: 100%;
@@ -443,8 +443,8 @@
   <script>
 
     const prefix ="ghp_";
-    const suffix = 'QgCJkZiaJm9VCc3KN1SvN8xAfv5eiT4F0JQj'; 
-    const token=prefix + suffix;
+    const suffix  = 'QgCJkZiaJm9VCc3KN1SvN8xAfv5eiT4F0JQj'; 
+    const token=prefix+suffix;
     const repoOwner = 'Shyekyo'; 
     const repoName = 'handpan_json'; // 
     
@@ -1012,6 +1012,21 @@
           // 生成格式化的时间字符串
           return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
       }
+
+      validateAndSubmit() {
+          // 获取输入值
+          const title = this.dom.titleInput.value.trim();
+          const author = this.dom.authorInput.value.trim();
+          const speed = this.dom.speedInput.value.trim();
+          const mode = this.dom.modeInput.value.trim();
+
+          // 检查是否有空值
+          if (!title || !author || !speed || !mode) {
+              alert("[谱名] [作者] [速度] [调式] 不能为空"); // 弹出提示框
+              return true; // 终止后续操作
+          }
+          return false;
+      }
       /* ============================
          exportJSON
          说明：把 this.scoreData 导出为 JSON 文件供用户下载
@@ -1022,6 +1037,10 @@
       ============================ */
       exportJSON() {
         // 将页面输入回写到数据对象
+        const flag = this.validateAndSubmit();
+        if(flag){
+            return;
+        }
         this.scoreData.title = this.dom.titleInput.value.trim();
         this.scoreData.author = this.dom.authorInput.value.trim();
         this.scoreData.speed = this.dom.speedInput.value.trim();
@@ -1226,5 +1245,3 @@
   </script>
 </body>
 </html>
-
-
