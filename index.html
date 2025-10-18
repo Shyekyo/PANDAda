@@ -992,6 +992,8 @@
       ============================ */
       clearScore() {
         if (!confirm('确定要清空所有音符吗？')) return;
+        this.dom.authorInput.value="";
+        this.dom.titleInput.value="";
         this.initScore();
         this.renderScore();
         this.toggleReadonly(false);
