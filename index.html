@@ -443,118 +443,98 @@
   </div>
 
   <script>
-
-
-          // 模拟金属打击声
-          // this.metal = new Tone.MetalSynth({
-          //   frequency: 440, // 提高频率以接近手碟的音域
-          //   envelope: {
-          //     attack: 0.3,    // 适中的攻击时间，模拟打击声
-          //     decay: 0.8,     // 较短的衰减时间
-          //     sustain: 0.5,   // 适中的维持时间
-          //     release: 1.0    // 较长的释放时间
-          //   },
-          //   harmonicity: 2.5, // 调整谐波性以增加音色的丰富性
-          //   modulationIndex: 10, // 降低调制指数以减少音色的尖锐感
-          //   resonance: 4000, // 降低共鸣频率，使音色更柔和
-          //   octaves: 2       // 提高音符范围
-          // });
-
-          // // 模拟柔和打击音（低频部分）
-          // this.membrane = new Tone.MembraneSynth({
-          //   pitchDecay: 0.1, // 增加音高衰减以模拟打击声的自然消失
-          //   octaves: 2,      // 降低音符范围
-          //   oscillator: { type: "sine" }, // 使用正弦波以获得平滑的音色
-          //   envelope: {
-          //     attack: 0.02,  // 较短的攻击时间
-          //     decay: 0.5,    // 适中的衰减时间
-          //     sustain: 0.3,  // 轻微的维持时间
-          //     release: 0.8   // 较长的释放时间
-          //   }
-          // });
-      class HandpanSynth {
-        constructor() {
-          // 使用 PolySynth 替代 MembraneSynth
-          this.synth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: {
-              type: "triangle",//"sine", // 使用正弦波
-            },
-            envelope: {
-              attack: 0.05,    // 较慢的攻击时间
-              decay: 0.3,     // 衰减时间
-              sustain: 0.3,   // 维持时间
-              release: 1,   // 较长的释放时间
-            },
-            modulation:{
-              type:"sine",//triangle",//"square"
-            },
-            modulationEnvelope:{
-              attack:0.05,
-              decay:0.1,
-              sustain:0,
-              release:0.2
-            },
-            modulationIndex:10
+    class HandpanSynth {
+      constructor() {
+        this.handpanVoice = () => {
+          // 混响设置，模拟手碟共鸣腔体
+          const reverb = new Tone.Reverb({
+            decay: 1.6,
+            wet: 0.55,
+            preDelay: 0.012
           }).toDestination();
 
-          // 添加混响以模拟手碟的共鸣腔
-          //this.reverb = new Tone.Reverb({
-          //  decay: 0.7,       // 适中的混响衰减时间
-          //  preDelay: 0.01  // 前延迟以增加空间感
-          //}).toDestination();
+          // 基础增益和软剪
+          const baseGain = new Tone.Gain(0.85).connect(reverb);
+          const clip = new Tone.WaveShaper(x => Math.tanh(x * 1.8), 512); // 更温暖的软剪
 
-          // 连接合成器到混响
-          //this.synth.connect(this.reverb);
-          this.synth.volume.value=-10
+          // AMP 包络（温暖圆润）
+          const ampEnv = new Tone.AmplitudeEnvelope({
+            attack: 0.003,
+            decay: 0.4,
+            sustain: 0.5,  // sustain 提高，更饱满
+            release: 5.2
+          }).connect(clip).connect(baseGain);
 
-          const reverb =new Tone.Reverb({
-            "decay":0.02,
-            "perDelay":0.1
-          }).toDestination();
-          this.synth.connect(reverb)
-          // 记录当前播放的音符
-          this.activeNotes = new Set();
-        }
+          // Oscillator 层（1x, 2x, 3x, 5x）
+          const oscs = [];
+          const volumes = [0, -10, -14, -12];    // 泛音降低，声音更柔和
+          const detunes = [0, 1, -1.2, 0.8];     // 微调泛音自然散开
 
-        /**
-         * 同时触发多个音符
-         * @param {string | string[]} notes - 单个音符或音符数组
-         * @param {number|string} duration - 持续时间
-         */
-        trigger(notes, duration = "8n") {
-          const now = Tone.now();
-          const noteArray = Array.isArray(notes) ? notes : [notes];
-
-          noteArray.forEach((note, i) => {
-            const freq = Tone.Frequency(note).toFrequency();
-            const startTime = now + i * 0.001; // 每个音符错开 1ms，避免相同 startTime
-
-            this.synth.triggerAttackRelease(freq, duration, startTime);
-            this.activeNotes.add(freq);
-          });
-
-          // 自动在 duration 后移除活跃记录
-          setTimeout(() => {
-            noteArray.forEach(note => {
-              const freq = Tone.Frequency(note).toFrequency();
-              this.activeNotes.delete(freq);
+          for (let i = 0; i < 4; i++) {
+            const o = new Tone.Oscillator({
+              type: "sine",
+              volume: volumes[i],
+              detune: detunes[i]
             });
-          }, Tone.Time(duration).toMilliseconds());
-        }
-
-        /**
-         * 手动释放所有正在发声的音符
-         */
-        release() {
-          try {
-            this.synth.triggerRelease();
-            this.activeNotes.clear();
-          } catch (e) {
-            console.warn("Release failed:", e);
+            o.connect(ampEnv);
+            oscs.push(o);
           }
-        }
+
+          // Pitch Drop 参数
+          const pitchDropTime = 0.07;
+          const startOffset = 1.005;  // +5 cent
+          const endOffset = 0.992;    // -8 cent
+
+          return (freq, duration, time) => {
+            oscs.forEach((o, idx) => {
+              // 每次稍微随机化音高和音量，模拟手敲击差异
+              const randomDetune = (Math.random() - 0.5) * 1.0; // ±0.5 cent
+              const randomVol = (Math.random() - 0.5) * 0.6;    // ±0.3 dB
+
+              const f = freq * [1, 2, 3, 5][idx];
+              const startFreq = f * startOffset + randomDetune;
+              const endFreq = f * endOffset + randomDetune;
+
+              o.frequency.setValueAtTime(startFreq, time);
+              o.start(time);
+              o.stop(time + Tone.Time(duration).toSeconds() + 5);
+              o.frequency.linearRampToValueAtTime(endFreq, time + pitchDropTime);
+              o.volume.setValueAtTime(volumes[idx] + randomVol, time);
+            });
+
+            ampEnv.triggerAttackRelease(duration, time);
+          };
+        };
+
+        // 多声部管理
+        this.activeNotes = new Set();
+        this.voicePool = new Map();
+        this.now = () => Tone.now();
       }
 
+      // 触发单个或多个音符
+      trigger(notes, duration = "8n") {
+        const noteArr = Array.isArray(notes) ? notes : [notes];
+        const start = this.now();
+
+        noteArr.forEach((n, i) => {
+          const freq = Tone.Frequency(n).toFrequency();
+          if (!this.voicePool.has(freq)) this.voicePool.set(freq, this.handpanVoice());
+          const t = start + i * 0.001; // 错开 1ms
+          this.voicePool.get(freq)(freq, duration, t);
+          this.activeNotes.add(freq);
+        });
+
+        setTimeout(() => {
+          noteArr.forEach(n => this.activeNotes.delete(Tone.Frequency(n).toFrequency()));
+        }, Tone.Time(duration).toMilliseconds() + 100);
+      }
+
+      // 手动释放所有音符
+      release() {
+        this.activeNotes.clear();
+      }
+    }
 
 
       class HandpanAudioPlayer {
