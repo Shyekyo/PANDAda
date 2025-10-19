@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>手碟谱编辑器 · Neo</title>
+  <script src="https://cdn.jsdelivr.net/npm/tone/build/Tone.js"></script>
   <style>
     /* ======== 全局 ======== */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -419,6 +420,7 @@
       <button onclick="printScore()">打印</button>
       <button class="secondary" onclick="exportJSON()">保存</button>
       <label class="file-label" for="importFile">导入</label>
+      <button id="playButton">播放</button>
       <div class="savedScores">
         <label>开源谱:</label>
         <select id="savedScoresSelect" onchange="editor.loadSavedScore(this.value)">
@@ -441,6 +443,288 @@
   </div>
 
   <script>
+
+
+          // 模拟金属打击声
+          // this.metal = new Tone.MetalSynth({
+          //   frequency: 440, // 提高频率以接近手碟的音域
+          //   envelope: {
+          //     attack: 0.3,    // 适中的攻击时间，模拟打击声
+          //     decay: 0.8,     // 较短的衰减时间
+          //     sustain: 0.5,   // 适中的维持时间
+          //     release: 1.0    // 较长的释放时间
+          //   },
+          //   harmonicity: 2.5, // 调整谐波性以增加音色的丰富性
+          //   modulationIndex: 10, // 降低调制指数以减少音色的尖锐感
+          //   resonance: 4000, // 降低共鸣频率，使音色更柔和
+          //   octaves: 2       // 提高音符范围
+          // });
+
+          // // 模拟柔和打击音（低频部分）
+          // this.membrane = new Tone.MembraneSynth({
+          //   pitchDecay: 0.1, // 增加音高衰减以模拟打击声的自然消失
+          //   octaves: 2,      // 降低音符范围
+          //   oscillator: { type: "sine" }, // 使用正弦波以获得平滑的音色
+          //   envelope: {
+          //     attack: 0.02,  // 较短的攻击时间
+          //     decay: 0.5,    // 适中的衰减时间
+          //     sustain: 0.3,  // 轻微的维持时间
+          //     release: 0.8   // 较长的释放时间
+          //   }
+          // });
+      class HandpanSynth {
+        constructor() {
+          // 使用 PolySynth 替代 MembraneSynth
+          this.synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: {
+              type: "triangle",//"sine", // 使用正弦波
+            },
+            envelope: {
+              attack: 0.05,    // 较慢的攻击时间
+              decay: 0.3,     // 衰减时间
+              sustain: 0.3,   // 维持时间
+              release: 1,   // 较长的释放时间
+            },
+            modulation:{
+              type:"sine",//triangle",//"square"
+            },
+            modulationEnvelope:{
+              attack:0.05,
+              decay:0.1,
+              sustain:0,
+              release:0.2
+            },
+            modulationIndex:10
+          }).toDestination();
+
+          // 添加混响以模拟手碟的共鸣腔
+          //this.reverb = new Tone.Reverb({
+          //  decay: 0.7,       // 适中的混响衰减时间
+          //  preDelay: 0.01  // 前延迟以增加空间感
+          //}).toDestination();
+
+          // 连接合成器到混响
+          //this.synth.connect(this.reverb);
+          this.synth.volume.value=-10
+
+          const reverb =new Tone.Reverb({
+            "decay":0.02,
+            "perDelay":0.1
+          }).toDestination();
+          this.synth.connect(reverb)
+          // 记录当前播放的音符
+          this.activeNotes = new Set();
+        }
+
+        /**
+         * 同时触发多个音符
+         * @param {string | string[]} notes - 单个音符或音符数组
+         * @param {number|string} duration - 持续时间
+         */
+        trigger(notes, duration = "8n") {
+          const now = Tone.now();
+          const noteArray = Array.isArray(notes) ? notes : [notes];
+
+          noteArray.forEach((note, i) => {
+            const freq = Tone.Frequency(note).toFrequency();
+            const startTime = now + i * 0.001; // 每个音符错开 1ms，避免相同 startTime
+
+            this.synth.triggerAttackRelease(freq, duration, startTime);
+            this.activeNotes.add(freq);
+          });
+
+          // 自动在 duration 后移除活跃记录
+          setTimeout(() => {
+            noteArray.forEach(note => {
+              const freq = Tone.Frequency(note).toFrequency();
+              this.activeNotes.delete(freq);
+            });
+          }, Tone.Time(duration).toMilliseconds());
+        }
+
+        /**
+         * 手动释放所有正在发声的音符
+         */
+        release() {
+          try {
+            this.synth.triggerRelease();
+            this.activeNotes.clear();
+          } catch (e) {
+            console.warn("Release failed:", e);
+          }
+        }
+      }
+
+
+
+      class HandpanAudioPlayer {
+        constructor() {
+          // const params={
+          //   oscillator: {
+          //     type: "sine", // 使用正弦波
+          //   },
+          //   envelope: {
+          //     attack: 0.2,    // 较慢的攻击时间
+          //     decay: 0.5,     // 衰减时间
+          //     sustain: 0.8,   // 维持时间
+          //     release: 1.5,   // 较长的释放时间
+          //   }
+          // }
+          // this.synth = new Tone.PolySynth(Tone.Synth,params).toDestination(); // 使用 PolySynth 允许同时播放多个音符
+          // // 添加混响效果
+          // const reverb = new Tone.Reverb({
+          //   decay: 2,          // 混响衰减时间
+          //   preDelay: 0.01     // 前延迟时间
+          // }).toDestination();
+
+          // // 将合成器连接到混响效果
+          // this.synth.connect(reverb);
+          this.synth = new HandpanSynth();
+
+          this.scoreData = null;
+          this.noteMapping = {
+            'D': '3',
+            'S': 'A0',
+            'K': 'A0',
+            'T': 'A0',
+            '.': 'F0',
+            '1': 'F3',
+            '2': 'G3',
+            '3': 'A3',
+            '4': 'Bb3',
+            '5': 'C4',
+            '6': 'D3',
+            '7': 'E4',
+            '1.': 'F4',
+            '2.': 'G4',
+            '3.': 'A4',
+            '4.': 'F4',
+            '5.': 'C5',
+            '6.': 'D5',
+            '7.': 'E5',
+          };
+          this.isPlaying = false; // 播放状态
+          this.highlightTimers = [];
+          this.stopRequested = false;
+        }
+
+        setScoreData(scoreData) {
+          this.scoreData = scoreData; // 设置 scoreData
+        }
+
+        //author: "Shyekyo"
+        //beatsPerMeasure: 4
+        //lineCount: 8
+        //mode: "F4=1"
+        //notes: (8) [Array(8), Array(8), Array(8), Array(8), Array(8), Array(8), Array(8), Array(8)]
+        //speed: "60"
+        //subdivisionsPerBeat: 4
+        //title: "1345练习"
+
+        async playScore2() {
+          const { notes, speed, subdivisionsPerBeat } = this.scoreData;
+          const duration = 60 / speed; // 每个音符的持续时间（秒）
+          const quarterDuration = duration / subdivisionsPerBeat;
+
+          for (let lineIndex = 0; lineIndex < notes.length; lineIndex++) {
+            const line = notes[lineIndex];
+
+            for (let layerIndex = 0; layerIndex < line.length; layerIndex++) {
+              if (this.stopRequested) return;
+              const layer = line[layerIndex];
+
+              for (let beatsIndex = 0; beatsIndex < layer.length; beatsIndex++) {
+                if (this.stopRequested) return;
+                const beats = layer[beatsIndex];
+
+                if (beats && beats.length > 0) {
+                  const activeNotes = [];
+
+                  // ✅ 一次性准备这一拍的所有音符
+                  for (let beatIndex = 0; beatIndex < beats.length; beatIndex++) {
+                    const symbol = beats[beatIndex];
+                    const note = this.noteMapping[symbol];
+                    if (note) {
+                      activeNotes.push(note);
+                      this.highlightNote(lineIndex, layerIndex, beatsIndex, beatIndex, quarterDuration);
+                    }
+                  }
+
+                  // ✅ 同时播放这一拍的所有音符
+                  if (activeNotes.length > 0) {
+                    //this.synth.triggerAttackRelease(activeNotes, quarterDuration);
+                    this.synth.trigger(activeNotes, quarterDuration);
+                  }
+                  // ✅ 播放完这一拍后再进入下一拍
+                  await new Promise(resolve => setTimeout(resolve, quarterDuration * 1000));
+                }
+              }
+            }
+          }
+          this.isPlaying = false;
+          this.updateButton();
+        }
+
+
+        highlightNote(line, layer, beat, subdivision,duration) {
+          const selector = `.subdivision[data-line="${line}"][data-layer="${layer}"][data-beat="${beat}"][data-sub="${subdivision}"]`;
+          const target = document.querySelector(selector);
+          if (target) {
+            target.classList.add('active');
+             // 记录定时器ID
+            const removeTimer = setTimeout(() => {
+              target.classList.remove('active');
+            }, duration * 1000);
+
+            // 把定时器ID存起来，方便后面清除
+            this.highlightTimers.push(removeTimer);
+          }
+        }
+
+        async startPlayback(scoreData) {
+          this.stopPlayback();
+          this.setScoreData(scoreData)
+          await Tone.start(); // 启动音频上下文
+          this.isPlaying = true; // 更新播放状态
+          this.stopRequested = false; // ✅ 重置标志
+          this.updateButton(); // 更新按钮文本
+          //await this.playScore(); // 播放乐谱
+          await this.playScore2();
+        }
+
+        stopPlayback() {
+          //this.synth.releaseAll(); // 停止所有音符
+          this.synth.release();
+          this.isPlaying = false; // 更新播放状态
+          this.stopRequested = true; // ✅ 标记停止
+          this.updateButton(); // 更新按钮文本
+          // 清除所有高亮定时器
+          this.highlightTimers.forEach(id => clearTimeout(id));
+          this.highlightTimers = [];
+          // 移除页面上所有已高亮的元素
+          document.querySelectorAll('.subdivision.active').forEach(el => {
+            el.classList.remove('active');
+          });
+        }
+
+        updateButton() {
+          const button = document.getElementById('playButton');
+          button.textContent = this.isPlaying ? '停止' : '播放';
+        }
+      }
+
+      // 模拟scoreData（你可以替换为实际数据）
+      //const scoreData = {
+      //  notes: [
+       //   [
+       //     [ ["1", "2"], ["3"], ["4", "5"], ["6"] ],
+        //    [ ["7"], ["0"], ["1", "3"], ["2"] ]
+        //  ]
+       // ],
+        //speed: 60,
+        //beatsPerMeasure: 4
+      //};
+
 
     const prefix ="ghp_";
     const suffix  = 'QgCJkZiaJm9VCc3KN1SvN8xAfv5eiT4F0JQj'; 
@@ -865,9 +1149,9 @@
       selectPosition(line, layer, beat, subdivision) {
         // 移除旧高亮
         document.querySelectorAll('.subdivision.active').forEach(el => el.classList.remove('active'));
-
         // 构造选择器并设置目标元素高亮
         const selector = `.subdivision[data-line="${line}"][data-layer="${layer}"][data-beat="${beat}"][data-sub="${subdivision}"]`;
+        console.log(selector+"====")
         const target = document.querySelector(selector);
         if (target) target.classList.add('active');
 
@@ -1188,6 +1472,7 @@
     alert("您在此编辑器中编写的谱子将被视为开源，其他使用该编辑器的用户将能够查看并使用您的创作。我鼓励您分享您的谱子，也祝您在音乐创作中获得灵感与乐趣！")
     window.editor = new HandpanScoreEditor();
 
+
     // 🎵 本地内存中的谱子仓库
     // ===============================
     window.savedScores = [];  // 以 “title|author” 为键，存储 JSON 对象
@@ -1230,6 +1515,16 @@
       this.renderScore();
       this.autoScaleScore();
       //lert(`🎼 已加载谱子：${key.replace('|', ' · ')}`);
+    };
+
+    // 创建音频播放器实例scoreData
+    const player = new HandpanAudioPlayer();
+    document.getElementById('playButton').onclick =async () => {
+      if (player.isPlaying) {
+        player.stopPlayback(); // 停止播放
+      } else {
+        await player.startPlayback(window.editor.scoreData); // 开始播放
+      }
     };
 
 
