@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>手碟谱编辑器 · Neo</title>
+  <title>PANDAda</title>
   <script src="https://cdn.jsdelivr.net/npm/tone/build/Tone.js"></script>
   <style>
     /* ======== 全局 ======== */
@@ -428,7 +428,7 @@
     <!-- 滚动文字 -->
     <div class="ad-banner">
       <div class="ad-content">
-        🎵  PANDAda ✨ 
+        🎵  PANDAda· PAN PANDA DADA ✨ 
       </div>
     </div>
     
@@ -465,7 +465,7 @@
       <label class="file-label" for="importFile">导入</label>
       <button id="playButton">播放</button>
       <div class="savedScores">
-        <label>开源谱:</label>
+        <label>碟友公开谱:</label>
         <select id="savedScoresSelect" onchange="editor.loadSavedScore(this.value)">
           <option value="">选择谱子</option>
         </select>
@@ -477,10 +477,10 @@
     <div class="info">
       <h3>📘 说明</h3>
       <ul>
-        <li>点击格子输入音符,适用数字谱和简谱；可输入【1./1../.1/..1】秒变简谱；</li>
+        <li>点击格子输入音符,适用数字谱和简谱；高低音简谱可输入【1./1../.1/..1】简谱；</li>
         <li>方向键 ← → 上下移动光标；</li>
         <li>Delete/Backspace 可清空音符；</li>
-        <li>咨询可联系小红书【9676705488】；</li>
+        <li>小红书 <探险家小凡>9676705488</探险家小凡>；</li>
       </ul>
     </div>
   </div>
@@ -1459,7 +1459,7 @@
         if (!tip) {
           tip = document.createElement("div");
           tip.id = "readonlyTip";
-          tip.textContent = "🔒 当前为开源谱，禁止修改，点击‘清空’按钮后可开启编辑功能";
+          tip.textContent = "🔒 当前为公开谱，禁止修改，点击‘清空’按钮后可开启编辑功能";
           tip.style.position = "fixed";
           tip.style.top = "10px";
           tip.style.right = "10px";
@@ -1492,7 +1492,7 @@
     // ============================
     // 单例化编辑器并暴露到全局（兼容页面原有 inline onclick）
     // ============================
-    alert("您在此编辑器中编写的谱子将被视为开源，其他使用该编辑器的用户将能够查看并使用您的创作。我鼓励您分享您的谱子，也祝您在音乐创作中获得灵感与乐趣！")
+    alert("嘿嘿！你在此烹饪的谱子将会被大家一起品尝，其他食客将能够品尝你的创作。小凡鼓励你分享你的谱子，也祝你在音乐创作中获得灵感与乐趣！加盐吧！")
     window.editor = new HandpanScoreEditor();
 
 
@@ -1565,6 +1565,7 @@
   </script>
 </body>
 </html>
+
 
 
 
